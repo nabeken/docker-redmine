@@ -16,7 +16,7 @@ apt-get update
 
 # install build dependencies
 apt-get install -y libcurl4-openssl-dev libssl-dev libmagickcore-dev libmagickwand-dev \
-  libmysqlclient-dev libpq-dev libxslt1-dev libffi-dev libyaml-dev
+  libmysqlclient-dev libpq-dev libxslt1-dev libffi-dev libyaml-dev libsqlite3-dev
 
 # add redmine user
 adduser --disabled-login --gecos 'Redmine' redmine
@@ -55,10 +55,13 @@ echo "${REDMINE_VERSION}" > ${INSTALL_DIR}/VERSION
 #       are both installed.
 PG_GEM=$(grep 'gem "pg"' Gemfile | awk '{gsub(/^[ \t]+|[ \t]+$/,""); print;}')
 MYSQL2_GEM=$(grep 'gem "mysql2"' Gemfile | awk '{gsub(/^[ \t]+|[ \t]+$/,""); print;}')
+SQLITE3_GEM=$(grep 'gem "sqlite3"' Gemfile | awk '{gsub(/^[ \t]+|[ \t]+$/,""); print;}')
 sed '/gem "pg"/d' -i Gemfile
 sed '/gem "mysql2"/d' -i Gemfile
+sed '/gem "sqlite3"/d' -i Gemfile
 echo "${PG_GEM}" >> Gemfile
 echo "${MYSQL2_GEM}" >> Gemfile
+echo "${SQLITE3_GEM}" >> Gemfile
 
 # add gems for app server and memcache support
 echo 'gem "unicorn"' >> Gemfile
