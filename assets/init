@@ -101,7 +101,12 @@ elif [ -n "${POSTGRESQL_PORT_5432_TCP_ADDR}" ]; then
   DB_NAME=${DB_NAME:-${POSTGRESQL_ENV_DB}}
 fi
 
-if [ -z "${DB_HOST}" ]; then
+# If DB_NAME startswith '/', it treats as sqlite3 database
+if [[ "${DB_NAME}" == "/"* ]]; then
+  DB_TYPE=sqlite3
+fi
+
+if [ -z "${DB_TYPE}" ]; then
   echo "ERROR: "
   echo "  Please configure the database connection."
   echo "  Refer http://git.io/JkE-cw for more information."
@@ -113,6 +118,7 @@ fi
 case "${DB_TYPE}" in
   mysql) DB_PORT=${DB_PORT:-3306} ;;
   postgres) DB_PORT=${DB_PORT:-5432} ;;
+  sqlite3) echo "sqlite3 is selected" ;;
   *)
     echo "ERROR: "
     echo "  Please specify the database type in use via the DB_TYPE configuration option."
@@ -238,13 +244,23 @@ elif [ "${DB_TYPE}" == "mysql" ]; then
   sudo -u redmine -H sed 's/{{DB_ADAPTER}}/mysql2/' -i config/database.yml
   sudo -u redmine -H sed 's/{{DB_ENCODING}}/utf8/' -i config/database.yml
   sudo -u redmine -H sed 's/#reconnect: false/reconnect: false/' -i config/database.yml
+elif [ "${DB_TYPE}" == "sqlite3" ]; then
+  sudo -u redmine -H sed 's/{{DB_ADAPTER}}/sqlite3/' -i config/database.yml
+
+  # make sure that the basedir have the right ownership and permissions
+  mkdir -p "$(dirname "${DB_NAME}")"
+  chmod 0700 "$(dirname "${DB_NAME}")"
+  chown redmine:redmine "$(dirname "${DB_NAME}")"
 else
-  echo "Invalid database type: '$DB_TYPE'. Supported choices: [mysql, postgres]."
+  echo "Invalid database type: '$DB_TYPE'. Supported choices: [mysql, postgres, sqlite3]."
 fi
 
 sudo -u redmine -H sed 's/{{DB_HOST}}/'"${DB_HOST}"'/' -i config/database.yml
 sudo -u redmine -H sed 's/{{DB_PORT}}/'"${DB_PORT}"'/' -i config/database.yml
-sudo -u redmine -H sed 's/{{DB_NAME}}/'"${DB_NAME}"'/' -i config/database.yml
+
+# DB_NAME could contain filepath
+sudo -u redmine -H sed 's|{{DB_NAME}}|'"${DB_NAME}"'|' -i config/database.yml
+
 sudo -u redmine -H sed 's/{{DB_USER}}/'"${DB_USER}"'/' -i config/database.yml
 sudo -u redmine -H sed 's/{{DB_PASS}}/'"${DB_PASS}"'/' -i config/database.yml
 sudo -u redmine -H sed 's/{{DB_POOL}}/'"${DB_POOL}"'/' -i config/database.yml
@@ -374,6 +390,9 @@ case "${DB_TYPE}" in
   postgres)
     prog=$(find /usr/lib/postgresql/ -name pg_isready)
     prog="${prog} -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} -t 1"
+    ;;
+  sqlite3)
+    prog=true
     ;;
 esac
 
